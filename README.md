@@ -18,7 +18,7 @@ __Project contains__:
     - -0.01 every time the agent lets a ball hit the ground or hits the ball out of bounds
 * __Behaviour Parameters__:
     - Observation space: 9 variables corresponding to position, velocity and orientation of ball and racket.
-    - Action space: 3 variables corresponding to movement toward net or away from net, jumping and rotation.
+    - Action space: 2 variables corresponding to movement toward net or away from net and jumping
 
 ### Getting Started
 

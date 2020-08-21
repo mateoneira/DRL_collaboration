@@ -1,9 +1,20 @@
-## based on paper DDPG - CONTINUOUS CONTROL WITH DEEP REINFORCEMENT LEARNING
+## based on paper MADDPG - Multi-Agent Actor-Critic for Mixed Cooperative-Competitive Environments
 
 # requirements:
+# 	Multi-Agent Actor-Critic
+#		1. Learned policies can only use local information
+#		2. Cannot assume a differentiable model of env dynamics
+#		3. No assumed structure on communication between agents
+
+#		Centralized training with descentralized exec.
+#		Agents have different policies 
+#		Q_i^pi is centralized action-value function: takes in all agents
+#		actions and some state information, and outputs Q-value for agent i. 
+#		This action-value function is learned independently for each agent.
+
 # 	Ornstein-Uhlenbeck process noise class
 #		Replay buffer class 
-#		Actor-Critic networks (local and target for both) - with batch norm
+#		Actor-Critic networks (local and target for both) - with batch norm for each agent
 #		Soft update theta_prime = tau * theta + (1-tau)*prime_theta
 
 # notes:
@@ -23,22 +34,20 @@ import torch
 import torch.nn.functional as F 
 import torch.optim as optim
 
-## hyperparameters based on original paper
-
 BUFFER_SIZE = int(1e6)  # replay buffer size
-BATCH_SIZE = 256        # minibatch size
-GAMMA = 0.99            # discount factor
-TAU = 1e-3              # for soft update of target parameters
+BATCH_SIZE = 1024       # minibatch size
+GAMMA = 0.95            # discount factor
+TAU = 1e-2              # for soft update of target parameters
 LR_ACTOR = 1e-3         # learning rate of the actor 
 LR_CRITIC = 1e-3        # learning rate of the critic
 WEIGHT_DECAY = 0        # L2 weight decay
 
-NOISE_THETA = 0.15		# Ornstein-Ulenbeck parameter
-NOISE_SIGMA = 0.05		   #Ornstein-Ulenbeck parameter
-EPSILON_DECAY = 1e-6    #to decay noise
+NOISE_THETA = 0.15			# Ornstein-Ulenbeck parameter
+NOISE_SIGMA = 0.05			# Ornstein-Ulenbeck parameter
+EPSILON_DECAY = 1e-6   	# to decay noise
 
-UPDATE_FREQ = 20
-NUM_UPDATES = 10
+UPDATE_FREQ = 100
+NUM_UPDATES = 1
 
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
