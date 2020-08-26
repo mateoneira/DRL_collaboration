@@ -42,15 +42,58 @@ LR_ACTOR = 1e-3         # learning rate of the actor
 LR_CRITIC = 1e-3        # learning rate of the critic
 WEIGHT_DECAY = 0        # L2 weight decay
 
-NOISE_THETA = 0.15			# Ornstein-Ulenbeck parameter
+NOISE_THETA = 0.20			# Ornstein-Ulenbeck parameter
 NOISE_SIGMA = 0.05			# Ornstein-Ulenbeck parameter
-EPSILON_DECAY = 1e-6   	# to decay noise
+EPSILON_DECAY = 1e-5   	# to decay noise
 
-UPDATE_FREQ = 100
-NUM_UPDATES = 1
+UPDATE_FREQ = 50
+NUM_UPDATES = 10
 
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+class MADDPG():
+	"""
+	MADDPG class for multiagent learning 
+
+	for each episode
+		initialize a random process (Ornstein-Uhlenbeck).
+		receive inital observation state
+
+		for each state
+			select action according to current policy and noise for all agents
+			execute action and observe new state and reward
+			store transitions in replay buffer
+			for each agent
+				sample random minibatch
+				update critic by minimizing loss
+				update actor policy using sampled policy gradient
+				update target networks based on soft-update rule
+	"""
+	def __init__(self, state_size, action_size, num_agents=2, seed=42):
+	#create agents
+		self.ddpg_agents = [Agent(state_size, action_size, num_agents=num_agents) for _ in range(num_agents)]
+
+	def act(self, states):
+		for agent in self.ddpg_agents:
+			actions = [agent.act(np.expand_dims(state, axis=0)) for agent, state in zip(self.ddpg_agents, states)]
+			# actions= [np.expand_dims(state, axis=0) for agent, state in zip(self.ddpg_agents, states)]
+			return actions
+
+	def step(self, states, actions, rewards, next_states, dones):
+		for i, agent in enumerate(self.ddpg_agents):
+			state = np.expand_dims(states[i], axis=0)
+			action = np.expand_dims(actions[i], axis=0)
+			reward = np.expand_dims(rewards[i], axis=0)
+			next_state = np.expand_dims(next_states[i], axis=0)
+			done = np.expand_dims(dones[i], axis=0)
+			agent.step(state,action, reward, next_state, done)
+
+
+	def reset(self):
+		for agent in self.ddpg_agents:
+			agent.reset()
+
 
 class Agent():
 	"""
@@ -98,12 +141,12 @@ class Agent():
 		self.critic_optimizer = optim.Adam(self.critic_local.parameters(), lr=LR_CRITIC, weight_decay=WEIGHT_DECAY)
  
  		# Noise process
-		self.noise = [OUNoise(action_size, seed) for i in range(num_agents)]
+		self.noise = [OUNoise(action_size, seed)]
 		self.epsilon = 1.0
 		self.t_step = 0
 
 		# Replay memory
-		self.memory = ReplayBuffer(action_size, BUFFER_SIZE, BATCH_SIZE, random)
+		self.memory = ReplayBuffer(BUFFER_SIZE, BATCH_SIZE, random)
 		print('agent using {} device'.format(device))
 
 	def step(self, states, actions, rewards, next_states, dones):
@@ -235,14 +278,13 @@ class OUNoise:
 class ReplayBuffer:
 	"""Fixed-size buffer to store experience tuples."""
 
-	def __init__(self, action_size, buffer_size, batch_size, seed):
+	def __init__(self, buffer_size, batch_size, seed):
 		"""Initialize a ReplayBuffer object.
 		Params
 		======
 		    buffer_size (int): maximum size of buffer
 		    batch_size (int): size of each training batch
 		"""
-		self.action_size = action_size
 		self.memory = deque(maxlen=buffer_size)  # internal memory (deque)
 		self.batch_size = batch_size
 		self.experience = namedtuple("Experience", field_names=["state", "action", "reward", "next_state", "done"])
